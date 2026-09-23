@@ -1,6 +1,8 @@
 import json
 import math
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Lock
 
 import httpx
 
@@ -8,7 +10,11 @@ DONE = "DONE"
 
 
 class JevClient:
-    def __init__(self, api_key: str, model: str = "jev-1.13.0", transport=None):
+    def __init__(self, api_key: str, model: str = "jev-1.13.0", transport=None, max_concurrency=4):
+        if not 1 <= max_concurrency <= 8:
+            raise ValueError("Concurrency must be between 1 and 8")
+        self.max_concurrency = max_concurrency
+        self._metrics_lock = Lock()
         self.model = model
         self.input_tokens = 0
         self.calls = 0
@@ -42,8 +48,9 @@ class JevClient:
         })["next_token"]
 
     def rank_many(self, state: dict, criteria_list: list[dict], instructions: str):
-        """Evaluate independent questions in one round trip, with bounded payloads."""
+        """Evaluate independent questions in bounded, parallel HTTP batches."""
         results = {}
+        batches = []
         pending = {}
         for index, criteria in enumerate(criteria_list):
             key = f"q{index}"
@@ -51,11 +58,23 @@ class JevClient:
             self._validate_question(state, question)
             proposed = {**pending, key: question}
             if pending and self._size(state, proposed) > 56000:
-                results.update(self._rank_questions(state, pending))
+                batches.append(pending)
                 pending = {}
             pending[key] = question
         if pending:
-            results.update(self._rank_questions(state, pending))
+            batches.append(pending)
+        if len(batches) == 1:
+            results.update(self._rank_questions(state, batches[0]))
+        elif batches:
+            with ThreadPoolExecutor(max_workers=self.max_concurrency) as pool:
+                futures = [pool.submit(self._rank_questions, state, batch) for batch in batches]
+                try:
+                    for future in as_completed(futures):
+                        results.update(future.result())
+                except BaseException:
+                    for future in futures:
+                        future.cancel()
+                    raise
         return [results[f"q{i}"] for i in range(len(criteria_list))]
 
     def _size(self, state, questions):
@@ -73,7 +92,8 @@ class JevClient:
             self._validate_question(state, question)
         payload = {"model": self.model, "state": state, "questions": questions}
         for attempt in range(3):
-            self.calls += 1
+            with self._metrics_lock:
+                self.calls += 1
             response = self.http.post("/v1/systemone", json=payload)
             if response.status_code not in (429, 529) or attempt == 2:
                 break
@@ -91,5 +111,6 @@ class JevClient:
                 raise ValueError("Jev returned an invalid probability distribution")
             # Live values are rounded; do not require an exact sum of one.
             results[key] = probabilities
-        self.input_tokens += data.get("usage", {}).get("input_tokens", 0)
+        with self._metrics_lock:
+            self.input_tokens += data.get("usage", {}).get("input_tokens", 0)
         return results

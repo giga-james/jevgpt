@@ -1,4 +1,5 @@
 import json
+from threading import Barrier, Lock
 from collections import Counter
 from types import SimpleNamespace
 
@@ -49,5 +50,36 @@ def test_large_batches_split_and_keep_result_order():
         assert result == [{str(i): 1.0} for i in range(3)]
         assert client.calls == 2
         assert all(size <= 56000 for size in sizes)
+    finally:
+        client.close()
+
+
+def test_parallel_batches_preserve_order_and_metrics():
+    barrier = Barrier(4)
+    lock = Lock()
+    active = 0
+    peak = 0
+
+    def respond(request):
+        nonlocal active, peak
+        with lock:
+            active += 1
+            peak = max(peak, active)
+        barrier.wait(timeout=5)
+        data = json.loads(request.content)
+        with lock:
+            active -= 1
+        return httpx.Response(200, json={
+            "answers": {k: {"probabilities": {c: 1.0 for c in q["criteria"]}}
+                        for k, q in data["questions"].items()},
+            "usage": {"input_tokens": 7},
+        })
+
+    client = JevClient("fake", transport=httpx.MockTransport(respond), max_concurrency=4)
+    try:
+        result = client.rank_many({}, [{str(i): "x" * 20000} for i in range(8)], "Rank")
+        assert result == [{str(i): 1.0} for i in range(8)]
+        assert peak == client.calls == 4
+        assert client.input_tokens == 28
     finally:
         client.close()

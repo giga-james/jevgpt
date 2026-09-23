@@ -11,6 +11,7 @@ from .chat import generate
 from .client import JevClient
 from .vocabulary import Vocabulary
 from .hierarchy import Hierarchy
+from .tournament import Tournament
 
 
 def main():
@@ -18,8 +19,8 @@ def main():
     parser.add_argument("prompt", nargs="?", help="Omit for interactive chat; /quit exits, /reset clears history")
     parser.add_argument("--max-tokens", type=int, default=128)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--selection", choices=("shortlist", "hierarchical"), default="hierarchical",
-                        help="Token selection strategy (default: hierarchical)")
+    parser.add_argument("--selection", choices=("shortlist", "hierarchical", "tournament"), default="tournament",
+                        help="Token selection strategy (default: tournament)")
     parser.add_argument("--corpus", type=Path, help="UTF-8 text to use instead of the tiny bundled corpus")
     parser.add_argument("--trace", action=argparse.BooleanOptionalAction, default=False,
                         help="Show routing decisions and token probabilities on stderr (default: disabled)")
@@ -37,7 +38,13 @@ def main():
     try:
         vocab = Vocabulary(args.corpus.read_text() if args.corpus else None, args.seed)
         hierarchy = Hierarchy(vocab) if args.selection == "hierarchical" else None
+        if args.selection == "tournament":
+            hierarchy = Tournament(vocab, seed=args.seed)
         if args.dry_run:
+            if isinstance(hierarchy, Tournament):
+                import json
+                print(json.dumps(hierarchy.summary(), indent=2))
+                return
             if hierarchy is not None:
                 import json
                 print(json.dumps(hierarchy.options(hierarchy.root), ensure_ascii=False, indent=2))
