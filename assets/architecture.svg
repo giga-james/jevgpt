@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="700" viewBox="0 0 840 700" role="img" aria-labelledby="title desc">
+<title id="title">JevGPT architecture</title>
+<desc id="desc">OpenAI token vocabulary and prompt plus reply feed four stratified samples of 254 tokens each. Four parallel Jev calls propose candidates. Jev verifies the four candidates or chooses DONE. An appended token returns to the conversation.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#936782"/></marker></defs>
+<rect width="840" height="700" rx="16" fill="#0d1117"/>
+<g fill="none" stroke="#936782" stroke-width="2" marker-end="url(#arrow)">
+<path d="M255 132 V160 Q255 180 280 180 H390 V204"/>
+<path d="M625 132 V160 Q625 180 600 180 H450 V204"/>
+<path d="M420 288 V316 H165 V346"/><path d="M420 288 V316 H335 V346"/>
+<path d="M420 288 V316 H505 V346"/><path d="M420 288 V316 H675 V346"/>
+<path d="M165 404 V430 H370 V464"/><path d="M335 404 V444 H400 V464"/>
+<path d="M505 404 V444 H440 V464"/><path d="M675 404 V430 H470 V464"/>
+<path d="M360 554 V578 H255 V604"/><path d="M480 554 V578 H625 V604"/>
+<path d="M145 632 H48 V22 H625 V42"/>
+</g>
+<g stroke-width="1.5">
+<rect x="110" y="42" width="290" height="90" rx="8" fill="#fff1f6" stroke="#d88bad"/>
+<rect x="500" y="42" width="250" height="90" rx="8" fill="#fff1f6" stroke="#d88bad"/>
+<rect x="260" y="204" width="320" height="84" rx="8" fill="#fff1f6" stroke="#d88bad"/>
+<g fill="#f0eaff" stroke="#a58bc9"><rect x="100" y="346" width="130" height="58" rx="8"/><rect x="270" y="346" width="130" height="58" rx="8"/><rect x="440" y="346" width="130" height="58" rx="8"/><rect x="610" y="346" width="130" height="58" rx="8"/></g>
+<rect x="260" y="464" width="320" height="90" rx="8" fill="#fff0d9" stroke="#d3a05b"/>
+<rect x="145" y="604" width="220" height="56" rx="8" fill="#fff1f6" stroke="#d88bad"/>
+<rect x="515" y="604" width="220" height="56" rx="28" fill="#eaf5ef" stroke="#86ad95"/>
+</g>
+<g font-family="Arial, Helvetica, sans-serif" font-size="20" text-anchor="middle" fill="#29232b">
+<text x="255" y="70">Token vocabulary</text><text x="255" y="96" font-size="18">OpenAI tokenizer</text><text x="255" y="120" font-size="16">cl100k_base</text>
+<text x="625" y="95">Prompt + reply</text>
+<text x="420" y="239">Speculative group</text><text x="420" y="267" font-size="18">4 stratified samples · 254 tokens each</text>
+<text x="165" y="382">Jev 1</text><text x="335" y="382">Jev 2</text><text x="505" y="382">Jev 3</text><text x="675" y="382">Jev 4</text>
+<text x="420" y="500">Jev verifier</text><text x="420" y="529">4 candidates + DONE</text>
+<text x="255" y="639">Append token</text><text x="625" y="639">DONE · Finish</text>
+
+<text x="28" y="385" transform="rotate(-90 28 385)" fill="#c9b6de" font-size="16">Repeat with updated reply</text>
+</g>
+</svg>
