@@ -41,7 +41,45 @@ The first run downloads the `cl100k_base` tokenizer data. `--dry-run` may theref
 
 ## Algorithm
 
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#fff1f6", "primaryTextColor": "#29232b", "primaryBorderColor": "#d88bad", "lineColor": "#a7748c", "secondaryColor": "#f8f5fa", "tertiaryColor": "#fffafb", "fontFamily": "sans-serif"}}}%%
+flowchart TD
+    V["📚 cl100k_base vocabulary"] --> F["Keep valid UTF-8 text fragments<br/>Preserve spaces · exclude special tokens"]
+    F --> T["🌳 Build vocabulary tree once<br/>≤32 groups per node · ≤128 tokens per leaf"]
+
+    U["💬 User prompt + recent conversation"] --> S["🧠 Current state<br/>Prompt + history + full answer so far"]
+    T -. "Reuse tree for each output token" .-> R
+    S --> R
+
+    subgraph SELECT["🐹 JEV SELECTS ONE NEXT TOKEN — DEFAULT HIERARCHICAL MODE"]
+        R["Rank vocabulary groups"] --> B["Keep up to 3 promising branches<br/>Repeat routing until leaves"]
+        B --> L["Rank actual tokens in each retained leaf"]
+        L --> C["Keep up to 16 tokens per leaf<br/>≤48 finalists total"]
+        C --> J["⚖️ Fresh Jev Choice<br/>Finalist tokens + DONE"]
+    end
+
+    J --> D{"DONE selected?"}
+    D -- "Yes" --> E["✓ Finish reply"]
+    D -- "No" --> A["✍️ Append exact token text<br/>Stream it to the user"]
+    A --> G{"Output cap or<br/>repetition limit?"}
+    G -- "Yes" --> E
+    G -- "No · next token" --> S
+
+    classDef context fill:#f1effa,stroke:#a598bd,color:#29232b;
+    classDef vocab fill:#f5f5f2,stroke:#aaa99d,color:#29232b;
+    classDef action fill:#fff1f6,stroke:#d88bad,color:#29232b;
+    classDef finish fill:#eaf5ef,stroke:#86ad95,color:#263a2e;
+    class U,S context;
+    class V,F,T vocab;
+    class R,B,L,C,J,D,A,G action;
+    class E finish;
+```
+
+Every Jev decision within a step sees the same current state. Routing narrows the candidates; only the final chosen token changes the answer. Branch scores guide pruning, while the final Choice compares literal fragments afresh. Its probabilities apply to those finalists, not the entire vocabulary.
+
 Hierarchical selection with clean chat output is the default. Run `uv run jevgpt` with no options to use it. Pass `--trace` to enable debugging output or `--selection shortlist` to use the original algorithm below.
+
+### Optional shortlist mode
 
 1. Load `cl100k_base`; enumerate valid token IDs and retain independently valid UTF-8 text fragments. Exclude special tokens and nonprinting control characters. Preserve spaces and exact bytes.
 2. Build a 254-token shortlist: 97 basic ASCII/whitespace tokens, up to 31 additional corpus-frequency tokens, 64 prompt/recent-output tokens, 46 n-gram continuations, and 16 corpus-frequency-weighted exploration tokens. Deduplicate; fill spare slots with common tokens, then seeded random vocabulary tokens. Shuffle options to reduce fixed ordering bias. These are quotas, not guaranteed counts per group.
