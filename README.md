@@ -42,40 +42,17 @@ The first run downloads the `cl100k_base` tokenizer data. `--dry-run` may theref
 ## Algorithm
 
 ```mermaid
-%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#fff1f6", "primaryTextColor": "#29232b", "primaryBorderColor": "#d88bad", "lineColor": "#a7748c", "secondaryColor": "#f8f5fa", "tertiaryColor": "#fffafb", "fontFamily": "sans-serif"}}}%%
-flowchart TD
-    V["📚 cl100k_base vocabulary"] --> F["Keep valid UTF-8 text fragments<br/>Preserve spaces · exclude special tokens"]
-    F --> T["🌳 Build vocabulary tree once<br/>≤32 groups per node · ≤128 tokens per leaf"]
-
-    U["💬 User prompt + recent conversation"] --> S["🧠 Current state<br/>Prompt + history + full answer so far"]
-    T -. "Reuse tree for each output token" .-> R
-    S --> R
-
-    subgraph SELECT["🐹 JEV SELECTS ONE NEXT TOKEN — DEFAULT HIERARCHICAL MODE"]
-        R["Rank vocabulary groups"] --> B["Keep up to 3 promising branches<br/>Repeat routing until leaves"]
-        B --> L["Rank actual tokens in each retained leaf"]
-        L --> C["Keep up to 16 tokens per leaf<br/>≤48 finalists total"]
-        C --> J["⚖️ Fresh Jev Choice<br/>Finalist tokens + DONE"]
-    end
-
-    J --> D{"DONE selected?"}
-    D -- "Yes" --> E["✓ Finish reply"]
-    D -- "No" --> A["✍️ Append exact token text<br/>Stream it to the user"]
-    A --> G{"Output cap or<br/>repetition limit?"}
-    G -- "Yes" --> E
-    G -- "No · next token" --> S
-
-    classDef context fill:#f1effa,stroke:#a598bd,color:#29232b;
-    classDef vocab fill:#f5f5f2,stroke:#aaa99d,color:#29232b;
-    classDef action fill:#fff1f6,stroke:#d88bad,color:#29232b;
-    classDef finish fill:#eaf5ef,stroke:#86ad95,color:#263a2e;
-    class U,S context;
-    class V,F,T vocab;
-    class R,B,L,C,J,D,A,G action;
-    class E finish;
+%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#fff1f6", "primaryTextColor": "#29232b", "primaryBorderColor": "#d88bad", "lineColor": "#a7748c", "fontFamily": "sans-serif"}}}%%
+flowchart LR
+    P["💬 Your prompt"] --> N["🌳 Narrow the vocabulary"]
+    N --> J["🐹 Jev picks a token"]
+    J -- "Text" --> A["✍️ Add it to the reply"]
+    A -- "Repeat with reply so far" --> N
+    J -- "DONE" --> E["✓ Finish"]
+    style E fill:#eaf5ef,stroke:#86ad95,color:#263a2e
 ```
 
-Every Jev decision within a step sees the same current state. Routing narrows the candidates; only the final chosen token changes the answer. Branch scores guide pruning, while the final Choice compares literal fragments afresh. Its probabilities apply to those finalists, not the entire vocabulary.
+Jev searches smaller groups of tokens, chooses one text fragment, and adds it to the reply. It repeats with the growing reply until it picks `DONE` or hits a limit.
 
 Hierarchical selection with clean chat output is the default. Run `uv run jevgpt` with no options to use it. Pass `--trace` to enable debugging output or `--selection shortlist` to use the original algorithm below.
 
