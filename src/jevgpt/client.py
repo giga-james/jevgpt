@@ -49,14 +49,14 @@ class JevClient:
             "next_token": {"type": "choice", "instructions": instructions, "criteria": criteria}
         })["next_token"]
 
-    def rank_many(self, state: dict, criteria_list: list[dict], instructions: str):
+    def rank_many(self, state: dict, criteria_list: list[dict], instructions: str, separate_requests=False):
         """Evaluate independent questions in bounded, parallel HTTP batches."""
         return self.rank_questions(state, [
             {"type": "choice", "instructions": instructions, "criteria": criteria}
             for criteria in criteria_list
-        ])
+        ], separate_requests=separate_requests)
 
-    def rank_questions(self, state: dict, questions: list[dict]):
+    def rank_questions(self, state: dict, questions: list[dict], separate_requests=False):
         """Batch questions with their own instructions (including draft prefixes)."""
         results = {}
         batches = []
@@ -65,7 +65,7 @@ class JevClient:
             key = f"q{index}"
             self._validate_question(state, question)
             proposed = {**pending, key: question}
-            if pending and self._size(state, proposed) > 56000:
+            if pending and (separate_requests or self._size(state, proposed) > 56000):
                 batches.append(pending)
                 pending = {}
             pending[key] = question

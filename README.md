@@ -44,30 +44,30 @@ The first run downloads the `cl100k_base` tokenizer data. `--dry-run` may theref
 ```mermaid
 %%{init: {"theme": "base", "themeVariables": {"primaryColor": "#fff1f6", "primaryTextColor": "#29232b", "primaryBorderColor": "#d88bad", "lineColor": "#a7748c", "fontFamily": "sans-serif"}}}%%
 flowchart LR
-    P["💬 Your prompt"] --> N["📝 Draft 4 tokens"]
-    N --> J["🐹 Expand and verify"]
+    P["💬 Your prompt"] --> N["🎲 Sample 4 × 254 tokens"]
+    N --> J["🐹 Pick 4 winners, then verify"]
     J -- "Text" --> A["✍️ Add it to the reply"]
     A -- "Repeat with reply so far" --> N
     J -- "DONE" --> E["✓ Finish"]
     style E fill:#eaf5ef,stroke:#86ad95,color:#263a2e
 ```
 
-Jev drafts up to four tokens using the original heuristic shortlist, then batch-checks them against additional vocabulary candidates. It emits the matching prefix and the verifier's correction at the first disagreement, then repeats until DONE or a limit. Unverified drafts never appear in the chat.
+Four disjoint, stratified samples contain 254 candidates each. Four concurrent Jev calls choose one winner per sample for the same next-token position. A fifth call selects one of those four winners or DONE. Only that final token is appended, then the loop repeats.
 
 ### Selection modes
 
 | Mode | How it works | Cost per step |
 | --- | --- | --- |
-| **Speculative (default)** | Draft 4 shortlist tokens, rank 128 novel candidates per position, then verify against baseline finalists. | Usually 6 calls per fully accepted 4-token block |
+| **Parallel samples (default)** | Four disjoint 254-token samples → four concurrent winners → one final choice plus `DONE`. | 5 calls in 2 sequential stages per token |
 | **Tournament** | Evaluate all 390 buckets, compare their winners in semifinals, then choose a finalist or `DONE`. | Many batched calls; 44 per step in one live test |
 | **Hierarchical** | Search vocabulary groups, keep three promising branches, then compare up to 48 tokens plus `DONE`. | Usually 4 HTTP calls |
 | **Shortlist** | Choose from 254 tokens drawn from common text, the prompt, and likely continuations, plus `DONE`. | 1 HTTP call |
 
-All modes use the prompt and full reply so far. Speculative mode uses up to four concurrent requests, with verification questions normally fitting into one request per stage. Use `--selection shortlist` for the original one-call-per-token baseline. `--selection hierarchical` and `--selection tournament` remain available for experiments; tournament still launches all batches concurrently by default. Normal output stays a plain chatbot. `--trace` enables diagnostics. Retries and payload splitting can add calls.
+All modes use the prompt and full reply so far. Parallel-sample mode makes four concurrent draft requests, then one verifier request. The older `--selection speculative` spelling is an alias for this corrected algorithm. Use `--selection shortlist` for the original one-call-per-token baseline. `--selection hierarchical` and `--selection tournament` remain available for experiments; tournament still launches all batches concurrently by default. Normal output stays a plain chatbot. `--trace` enables diagnostics. Retries and payload splitting can add calls.
 
 ### Tradeoffs
 
-- **Speculation is heuristic:** the draft and verifier are both Jev; the verifier sees extra candidates, not superior model weights. Rejected drafts waste work, so this can be slower than plain shortlist. It is not distribution-preserving speculative sampling.
+- **Candidates, not future tokens:** the four drafts compete for the same next-token position. There is no sequential draft, acceptance loop, or discarded future suffix. Both draft and verifier use Jev; this is sampled tournament selection, not speculative decoding.
 - **Coverage vs. speed:** tournament evaluates every eligible token at every step and is expensive. Hierarchy prunes branches, and shortlist is fastest but restricts candidates.
 - **Search isn't certainty:** all approaches can discard a good continuation. Reported probabilities apply only to the choices shown, not the whole vocabulary.
 - **Text has limits:** partial UTF-8 tokens are excluded, reducing multilingual coverage. Long conversations drop older turns; the current reply is retained.
@@ -75,4 +75,4 @@ All modes use the prompt and full reply so far. Speculative mode uses up to four
 
 Generation stops on `DONE`, the output cap (128 tokens by default), or repeated loops. Local request-size guards keep payloads bounded but aren't exact Jev token counts.
 
-[Four-token speculation and benchmark](docs/speculative.md) · [Tournament details and benchmark](docs/tournament.md) · [Other algorithms and live comparisons](docs/algorithm.md) · [TypeSafe API](https://docs.typesafe.ai/api) · [Model limits](https://docs.typesafe.ai/models)
+[Parallel samples and benchmark](docs/parallel.md) · [Tournament details and benchmark](docs/tournament.md) · [Other algorithms and live comparisons](docs/algorithm.md) · [TypeSafe API](https://docs.typesafe.ai/api) · [Model limits](https://docs.typesafe.ai/models)

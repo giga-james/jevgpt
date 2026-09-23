@@ -1,6 +1,6 @@
 # Algorithm details
 
-The default is now the [four-token draft-and-verify loop](speculative.md), with clean chat output. This page documents the alternative `--selection hierarchical` and `--selection shortlist` modes and their earlier benchmarks.
+The default is now the [four parallel stratified samples](parallel.md), with clean chat output. This page documents the alternative `--selection hierarchical` and `--selection shortlist` modes and their earlier benchmarks.
 
 ### Optional shortlist mode
 
