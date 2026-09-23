@@ -54,6 +54,8 @@ flowchart LR
 
 The main motivation for speculative mode is to expand the candidate vocabulary at each step: from a single 254-token shortlist to 1,016 distinct candidates across four samples. Each parallel draft predicts a possible next token from its sample, and the verifier selects which prediction advances the reply. The four predictions are alternatives for the same next position, rather than a sequence of four consecutive tokens.
 
+Each shortlist mixes tokens from the prompt and recent reply, common corpus tokens, n-gram continuations, lexical matches, and random exploration. Candidates are distributed across the four samples without duplicates; unused slots are filled with random tokens from the remaining vocabulary. Each sample is shuffled and rebuilt at every output step.
+
 See the [experiment log](docs/experiments.md) for the iterations, observed outputs, latency measurements, and why we changed direction.
 
 ## Run
