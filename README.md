@@ -14,6 +14,14 @@
 
 A deliberately questionable chatbot: Jev chooses one OpenAI tokenizer fragment at a time, and the growing answer becomes the next classification input. No generative model proposes the output.
 
+## Demo
+
+![Live JevGPT terminal chat](assets/jevgpt-demo.gif)
+
+[Watch the MP4](assets/jevgpt-demo.mp4) · [Record it yourself](demo/README.md)
+
+A real two-turn chat with live Jev responses, played at original speed.
+
 ## Methodology
 
 Jev is the core: it selects every candidate and decides which token to append. Speculative drafting and the tokenizer support that process.
