@@ -38,7 +38,7 @@ Jev is the core: it selects every candidate and decides which token to append. S
 %%{init: {"theme": "base", "flowchart": {"nodeSpacing": 24, "rankSpacing": 42, "curve": "basis", "htmlLabels": false, "padding": 20}, "themeVariables": {"primaryColor": "#fff1f6", "primaryTextColor": "#29232b", "primaryBorderColor": "#d88bad", "lineColor": "#a7748c", "fontFamily": "sans-serif", "fontSize": "18px"}}}%%
 flowchart TB
     C["💬 Prompt + reply"]
-    O["OpenAI tokenizer<br/>cl100k_base"]
+    O["Token vocabulary<br/>OpenAI tokenizer · cl100k_base"]
     C & O --> S["4 stratified samples<br/>254 tokens each"]
     S --> A["Jev ①"] & B["Jev ②"] & E["Jev ③"] & F["Jev ④"]
     A & B & E & F --> V["🐹 Jev verifier<br/>4 candidates + DONE"]
