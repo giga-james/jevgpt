@@ -21,7 +21,7 @@ Jev is the core: it selects every candidate and decides which token to append. S
 | Component | Role |
 | --- | --- |
 | **Jev** | TypeSafe AI's classifier powers all four drafts and the final verifier. |
-| **Speculative decoding** | Inspiration for our four parallel candidate drafts followed by one verifier. |
+| **Speculative decoding** | Expands the candidate vocabulary: four parallel 254-token samples feed one verifier. |
 | **OpenAI tokenizer** | `tiktoken` with `cl100k_base` supplies the token vocabulary and exact text fragments. |
 
 ### Architecture
@@ -51,6 +51,8 @@ flowchart LR
 ```
 
 **Speculative mode: draft in parallel → verify → append.** Four disjoint, stratified samples cover 1,016 tokens. Each Jev draft proposes one candidate for the same next-token position; the verifier selects one of the four candidates or `DONE`.
+
+We use speculative mode solely to expand the candidate vocabulary at each step: from a single 254-token shortlist to 1,016 distinct candidates across four samples. The parallel drafts let Jev consider that wider pool before the verifier chooses one token. They do not predict future positions or emit multiple tokens at once; this is not a claim of the speedups provided by conventional speculative decoding.
 
 See the [experiment log](docs/experiments.md) for the iterations, observed outputs, latency measurements, and why we changed direction.
 
