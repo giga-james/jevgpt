@@ -12,6 +12,7 @@ from .client import JevClient
 from .vocabulary import Vocabulary
 from .hierarchy import Hierarchy
 from .tournament import Tournament
+from .speculative import Speculative
 
 
 def main():
@@ -20,8 +21,8 @@ def main():
     parser.add_argument("--max-tokens", type=int, default=128)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--concurrency", type=int, help="Maximum concurrent requests (default: 390 for tournament, 4 otherwise)")
-    parser.add_argument("--selection", choices=("shortlist", "hierarchical", "tournament"), default="tournament",
-                        help="Token selection strategy (default: tournament)")
+    parser.add_argument("--selection", choices=("shortlist", "speculative", "hierarchical", "tournament"), default="speculative",
+                        help="Token selection strategy (default: speculative)")
     parser.add_argument("--corpus", type=Path, help="UTF-8 text to use instead of the tiny bundled corpus")
     parser.add_argument("--trace", action=argparse.BooleanOptionalAction, default=False,
                         help="Show routing decisions and token probabilities on stderr (default: disabled)")
@@ -43,7 +44,11 @@ def main():
         hierarchy = Hierarchy(vocab) if args.selection == "hierarchical" else None
         if args.selection == "tournament":
             hierarchy = Tournament(vocab, seed=args.seed)
+        speculative = Speculative(vocab) if args.selection == "speculative" else None
         if args.dry_run:
+            if speculative is not None:
+                print("Heuristic drafts: 4 tokens; expansion: 128 novel candidates per position; batched verification")
+                return
             if isinstance(hierarchy, Tournament):
                 import json
                 print(json.dumps(hierarchy.summary(), indent=2))
@@ -84,7 +89,7 @@ def main():
                           file=sys.stderr)
 
             result = generate(client, vocab, prompt, history, args.max_tokens, emit,
-                              hierarchy=hierarchy, on_decision=decision)
+                              hierarchy=hierarchy, on_decision=decision, speculative=speculative)
             print()
             if args.trace:
                 print(f"[{result.stop_reason}; {len(result.tokens)} tokens; "

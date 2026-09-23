@@ -1,6 +1,6 @@
 # Full-vocabulary tournament
 
-Run `uv run jevgpt`. Tournament is the default; the CLI shows only chat text unless `--trace` is requested. `--dry-run` reports vocabulary coverage and bucket count without making Jev calls.
+Run `uv run jevgpt --selection tournament`. Tournament is optional; the CLI shows only chat text unless `--trace` is requested. `--selection tournament --dry-run` reports vocabulary coverage and bucket count without making Jev calls.
 
 ## Selection
 

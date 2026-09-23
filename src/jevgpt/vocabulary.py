@@ -1,6 +1,7 @@
 from collections import Counter, defaultdict
 from importlib.resources import files
 import random
+import re
 
 import tiktoken
 
@@ -36,6 +37,29 @@ class Vocabulary:
 
     def encode(self, text: str) -> list[int]:
         return self.encoding.encode(text, disallowed_special=())
+
+    def expansion(self, prompt, answer, draft, excluded, limit=128):
+        """Retrieve novel lexical alternatives plus exploration, without API calls."""
+        if not hasattr(self, "prefix_index"):
+            self.prefix_index = defaultdict(list)
+            for token, text in self.text.items():
+                word = text.strip().casefold()
+                if len(word) >= 3 and word.isalpha():
+                    self.prefix_index[word[:3]].append(token)
+        words = re.findall(r"[^\W\d_]+", prompt + " " + answer[-256:], re.UNICODE)
+        if draft is not None:
+            words.insert(0, self.text[draft].strip())
+        pool = set()
+        exact = {word.casefold() for word in words}
+        for word in words:
+            pool.update(self.prefix_index.get(word.casefold()[:3], ()))
+        ranked = sorted(pool - set(excluded), key=lambda t: (
+            self.text[t].strip().casefold() not in exact, -self.frequency[t], t))
+        selected = ranked[:limit * 3 // 4]
+        seen = set(excluded) | set(selected)
+        remaining = [t for t in self.text if t not in seen]
+        selected.extend(self.rng.sample(remaining, min(limit - len(selected), len(remaining))))
+        return selected
 
     def shortlist(self, prompt: str, answer: list[int], limit: int = 254) -> list[int]:
         if not 1 <= limit <= 254:

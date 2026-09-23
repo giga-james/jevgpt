@@ -11,7 +11,7 @@ class Result:
 
 
 def generate(client, vocabulary, prompt, history=(), max_tokens=128, on_token=None,
-             hierarchy=None, on_decision=None):
+             hierarchy=None, on_decision=None, speculative=None):
     if not prompt.strip():
         raise ValueError("Prompt must not be empty")
     if len(prompt.encode()) > 8000:
@@ -29,13 +29,20 @@ def generate(client, vocabulary, prompt, history=(), max_tokens=128, on_token=No
     tokens = []
     text = ""
     reason = "max_tokens"
-    for _ in range(max_tokens):
+    pending = []
+    while len(tokens) < max_tokens:
         state = {
             "conversation": recent,
             "user_message": prompt,
             "assistant_reply_so_far": text,
         }
-        if hierarchy is None:
+        if speculative is not None:
+            if not pending:
+                pending = speculative.block(client, state, tokens, max_tokens - len(tokens), on_decision)
+                if not pending:
+                    raise ValueError("Speculation returned no verified decisions")
+            choice, probability = pending.pop(0)
+        elif hierarchy is None:
             shortlist = vocabulary.shortlist(prompt, tokens)
             candidates = {f"t{t}": vocabulary.text[t] for t in shortlist}
             choice, probability = client.choose(state, candidates)
@@ -44,7 +51,7 @@ def generate(client, vocabulary, prompt, history=(), max_tokens=128, on_token=No
         if choice == DONE:
             reason = "done"
             break
-        if hierarchy is None and choice not in candidates:
+        if speculative is None and hierarchy is None and choice not in candidates:
             raise ValueError("Jev selected a token outside the shortlist")
         token = int(choice[1:])
         tokens.append(token)

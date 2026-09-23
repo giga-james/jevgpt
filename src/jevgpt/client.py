@@ -51,12 +51,18 @@ class JevClient:
 
     def rank_many(self, state: dict, criteria_list: list[dict], instructions: str):
         """Evaluate independent questions in bounded, parallel HTTP batches."""
+        return self.rank_questions(state, [
+            {"type": "choice", "instructions": instructions, "criteria": criteria}
+            for criteria in criteria_list
+        ])
+
+    def rank_questions(self, state: dict, questions: list[dict]):
+        """Batch questions with their own instructions (including draft prefixes)."""
         results = {}
         batches = []
         pending = {}
-        for index, criteria in enumerate(criteria_list):
+        for index, question in enumerate(questions):
             key = f"q{index}"
-            question = {"type": "choice", "instructions": instructions, "criteria": criteria}
             self._validate_question(state, question)
             proposed = {**pending, key: question}
             if pending and self._size(state, proposed) > 56000:
@@ -77,7 +83,7 @@ class JevClient:
                     for future in futures:
                         future.cancel()
                     raise
-        return [results[f"q{i}"] for i in range(len(criteria_list))]
+        return [results[f"q{i}"] for i in range(len(questions))]
 
     def _size(self, state, questions):
         return len(json.dumps({"model": self.model, "state": state, "questions": questions},
