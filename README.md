@@ -52,7 +52,7 @@ flowchart LR
 
 **Speculative mode: draft in parallel → verify → append.** Four disjoint, stratified samples cover 1,016 tokens. Each Jev draft proposes one candidate for the same next-token position; the verifier selects one of the four candidates or `DONE`.
 
-We use speculative mode solely to expand the candidate vocabulary at each step: from a single 254-token shortlist to 1,016 distinct candidates across four samples. The parallel drafts let Jev consider that wider pool before the verifier chooses one token. They do not predict future positions or emit multiple tokens at once; this is not a claim of the speedups provided by conventional speculative decoding.
+The main motivation for speculative mode is to expand the candidate vocabulary at each step: from a single 254-token shortlist to 1,016 distinct candidates across four samples. Each parallel draft predicts a possible next token from its sample, and the verifier selects which prediction advances the reply. The four predictions are alternatives for the same next position, rather than a sequence of four consecutive tokens.
 
 See the [experiment log](docs/experiments.md) for the iterations, observed outputs, latency measurements, and why we changed direction.
 
@@ -96,7 +96,7 @@ Related reading: [Fast Inference from Transformers via Speculative Decoding](htt
 
 ### Tradeoffs
 
-- **Candidates, not future tokens:** the four drafts compete for the same next-token position. There is no sequential draft, acceptance loop, or discarded future suffix. Both draft and verifier use Jev; this is sampled tournament selection, not speculative decoding.
+- **Next-token predictions:** all four drafts predict a continuation at the same position; the verifier selects one to append. Both draft and verifier use Jev. This candidate-selection procedure differs from the paper's sequential drafting and acceptance algorithm.
 - **Coverage vs. speed:** tournament evaluates every eligible token at every step and is expensive. Hierarchy prunes branches, and shortlist is fastest but restricts candidates.
 - **Search isn't certainty:** all approaches can discard a good continuation. Reported probabilities apply only to the choices shown, not the whole vocabulary.
 - **Text has limits:** partial UTF-8 tokens are excluded, reducing multilingual coverage. Long conversations drop older turns; the current reply is retained.
