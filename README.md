@@ -62,7 +62,7 @@ Jev evaluates every eligible token in buckets, compares the bucket winners, and 
 | **Hierarchical** | Search vocabulary groups, keep three promising branches, then compare up to 48 tokens plus `DONE`. | Usually 4 HTTP calls |
 | **Shortlist** | Choose from 254 tokens drawn from common text, the prompt, and likely continuations, plus `DONE`. | 1 HTTP call |
 
-All modes use the prompt and full reply so far. Independent questions share bounded batches, with up to four HTTP requests in flight. Use `--selection hierarchical` or `--selection shortlist` to compare modes, or `--trace` to inspect decisions. Normal output stays a plain chatbot. Retries and large requests can add calls.
+All modes use the prompt and full reply so far. Independent questions share bounded batches, with all tournament batches submitted concurrently by default (up to 390 requests; usually far fewer because each batch contains multiple buckets). Pass `--concurrency 4` to limit concurrency. Use `--selection hierarchical` or `--selection shortlist` to compare modes, or `--trace` to inspect decisions. Normal output stays a plain chatbot. Retries and large requests can add calls.
 
 ### Tradeoffs
 

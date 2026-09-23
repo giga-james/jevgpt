@@ -4,6 +4,7 @@ from collections import Counter
 from types import SimpleNamespace
 
 import httpx
+import pytest
 
 from jevgpt.client import JevClient
 from jevgpt.hierarchy import Hierarchy
@@ -54,8 +55,9 @@ def test_large_batches_split_and_keep_result_order():
         client.close()
 
 
-def test_parallel_batches_preserve_order_and_metrics():
-    barrier = Barrier(4)
+@pytest.mark.parametrize("batch_count", [4, 12])
+def test_parallel_batches_preserve_order_and_metrics(batch_count):
+    barrier = Barrier(batch_count)
     lock = Lock()
     active = 0
     peak = 0
@@ -75,11 +77,11 @@ def test_parallel_batches_preserve_order_and_metrics():
             "usage": {"input_tokens": 7},
         })
 
-    client = JevClient("fake", transport=httpx.MockTransport(respond), max_concurrency=4)
+    client = JevClient("fake", transport=httpx.MockTransport(respond), max_concurrency=390)
     try:
-        result = client.rank_many({}, [{str(i): "x" * 20000} for i in range(8)], "Rank")
-        assert result == [{str(i): 1.0} for i in range(8)]
-        assert peak == client.calls == 4
-        assert client.input_tokens == 28
+        result = client.rank_many({}, [{str(i): "x" * 20000} for i in range(batch_count * 2)], "Rank")
+        assert result == [{str(i): 1.0} for i in range(batch_count * 2)]
+        assert peak == client.calls == batch_count
+        assert client.input_tokens == 7 * batch_count
     finally:
         client.close()

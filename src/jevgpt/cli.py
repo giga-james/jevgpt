@@ -19,6 +19,7 @@ def main():
     parser.add_argument("prompt", nargs="?", help="Omit for interactive chat; /quit exits, /reset clears history")
     parser.add_argument("--max-tokens", type=int, default=128)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--concurrency", type=int, help="Maximum concurrent requests (default: 390 for tournament, 4 otherwise)")
     parser.add_argument("--selection", choices=("shortlist", "hierarchical", "tournament"), default="tournament",
                         help="Token selection strategy (default: tournament)")
     parser.add_argument("--corpus", type=Path, help="UTF-8 text to use instead of the tiny bundled corpus")
@@ -31,6 +32,8 @@ def main():
     load_dotenv(Path.cwd() / ".env")
     if not 1 <= args.max_tokens <= 512:
         parser.error("--max-tokens must be between 1 and 512")
+    if args.concurrency is not None and not 1 <= args.concurrency <= 390:
+        parser.error("--concurrency must be between 1 and 390")
     key = os.getenv("TYPESAFE_API_KEY", "").strip()
     if not key and not args.dry_run:
         parser.error("Set TYPESAFE_API_KEY in .env or your environment")
@@ -53,7 +56,8 @@ def main():
                 print(f"t{token}\t{vocab.text[token]!r}")
             print("DONE\tEnd the reply")
             return
-        client = JevClient(key, os.getenv("JEV_MODEL", "jev-1.13.0"))
+        client = JevClient(key, os.getenv("JEV_MODEL", "jev-1.13.0"),
+                           max_concurrency=args.concurrency or (390 if args.selection == "tournament" else 4))
         history = []
         while True:
             prompt = args.prompt if args.prompt is not None else input("You: ")

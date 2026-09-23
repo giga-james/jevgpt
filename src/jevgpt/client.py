@@ -11,8 +11,8 @@ DONE = "DONE"
 
 class JevClient:
     def __init__(self, api_key: str, model: str = "jev-1.13.0", transport=None, max_concurrency=4):
-        if not 1 <= max_concurrency <= 8:
-            raise ValueError("Concurrency must be between 1 and 8")
+        if not 1 <= max_concurrency <= 390:
+            raise ValueError("Concurrency must be between 1 and 390")
         self.max_concurrency = max_concurrency
         self._metrics_lock = Lock()
         self.model = model
@@ -21,6 +21,8 @@ class JevClient:
         self.http = httpx.Client(
             base_url="https://api.typesafe.ai", timeout=60,
             headers={"Authorization": f"Bearer {api_key}"}, transport=transport,
+            limits=httpx.Limits(max_connections=max_concurrency,
+                                max_keepalive_connections=min(max_concurrency, 64)),
         )
 
     def close(self):

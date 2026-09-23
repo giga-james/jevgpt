@@ -14,7 +14,7 @@ This is a tournament, not speculative decoding of multiple future positions. Pro
 
 ## Execution and limits
 
-Independent questions are packed into requests up to 56,000 serialized UTF-8 bytes, with a separate 28,000-byte state-plus-question guard. Up to four requests run concurrently using a shared HTTP connection pool. Responses are mapped back by question ID even when requests finish out of order. Call and usage counters are protected across threads. On a batch failure, queued work is canceled and the generation fails rather than silently omitting vocabulary buckets; already running calls may finish.
+Independent questions are packed into requests up to 56,000 serialized UTF-8 bytes, with a separate 28,000-byte state-plus-question guard. All independent tournament batches run concurrently by default, with a 390-request ceiling and a matching HTTP connection-pool limit. Multiple bucket questions still share each request, so 390 buckets usually require far fewer than 390 concurrent requests. Pass `--concurrency 4` to restore the earlier throttle. This submits all first-round work without a four-request queue, but does not guarantee simultaneous server execution. Jev may throttle bursts. Responses are mapped back by question ID even when requests finish out of order. Call and usage counters are protected across threads. On a batch failure, queued work is canceled and the generation fails rather than silently omitting vocabulary buckets; already running calls may finish.
 
 These byte guards are conservative local limits, not Jev tokenizer counts. Rate-limit retries and growing context can increase requests and latency. Generation still uses the existing output and repetition caps. The custom corpus affects the older selection modes; tournament bucket membership depends only on eligible tokens and the shuffle seed.
 
@@ -22,7 +22,7 @@ The exhaustive first round is expensive even when DONE wins: termination is deci
 
 ## Bounded live check
 
-Prompt: `Say hello in one short sentence.` Both modes were capped at two output tokens with the same model and key.
+Earlier benchmark with four concurrent requests: `Say hello in one short sentence.` Both modes were capped at two output tokens with the same model and key.
 
 | Mode | Text | Stop | HTTP calls | Reported input tokens | Time |
 | --- | --- | --- | ---: | ---: | ---: |
@@ -30,3 +30,5 @@ Prompt: `Say hello in one short sentence.` Both modes were capped at two output 
 | Tournament | `Hello.` | Two-token cap | 88 | 3,523,613 | 10.24 s |
 
 This verifies live full-vocabulary selection, not answer quality or a speed advantage. The tournament did not reach a DONE decision before the test cap. Its longer response also contains more emitted tokens; the timings are single observations, not a controlled quality benchmark.
+
+With the all-batches-concurrent default, a separate one-token run of the same greeting produced `Hello` in 2.2 seconds, using 44 HTTP calls and 1,761,787 reported input tokens. It hit the one-token cap. This is a single timing sample, not a guarantee; parallelism reduces elapsed waiting, not classification work or input usage.
