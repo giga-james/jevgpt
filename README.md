@@ -55,13 +55,24 @@ N-gram suggestions use suffixes of up to three output token IDs, backing off to 
 
 The default hierarchical mode makes every eligible vocabulary token reachable without a corpus shortlist. It sorts exact text fragments lexicographically, partitions them into at most 32 contiguous groups, and recursively partitions each group until leaves contain at most 128 tokens. Every group describes its inclusive text boundaries, shared prefix, token count, and six illustrative examples. Corpus frequency selects examples only; it never excludes tokens from the tree.
 
-For each output token, Jev chooses a group, then a subgroup, then an exact token from the leaf. Each decision sees the same prompt and full answer-so-far. Only the final token is appended. DONE is available at the root, where stopping is evaluated before committing to a group. Each emitted token currently takes three sequential decisions; DONE takes one. Retries can add HTTP calls. The existing output and repetition caps still apply.
+For each output token, a bounded beam search keeps up to three promising branches at every level. Child routing scores are normalized locally and multiplied by their parent's score to rank the expanded branches; these products are heuristics, not calibrated global probabilities. Once the beam reaches leaves, Jev ranks the actual fragments in each leaf and retains up to 16 per leaf. A final fresh Choice compares at most 48 explicit fragments together, plus DONE. Routing scores are not included in this final comparison.
 
-Optional `--trace` output prints depth, selected option, option count, and the local probability of each routing decision. The final token probability is conditional on the selected leaf; routing probabilities are not multiplied or presented as global next-token probabilities. `--dry-run` prints the root's group descriptions without making API calls.
+Each decision sees the same prompt and full answer-so-far. Only the final selected token is appended. DONE is considered only in the final comparison, so it competes against actual continuations rather than broad vocabulary groups. With the current tree and defaults, each generated token or DONE takes eight sequential calls (one root, three subgroup rankings, three leaf rankings, and one final decision). Retries can add calls. The existing output and repetition caps still apply. The Python constructor exposes `beam_width` (default 3, maximum 8) and `per_leaf` (default 16); their product cannot exceed 254.
 
-This expands vocabulary coverage, not necessarily answer quality. Greedy routing can choose the wrong branch and cannot recover within that token. Text ranges can be difficult for Jev to interpret, and tokens containing partial UTF-8 sequences remain excluded. This does not compute an exhaustive global argmax or perform beam search.
+Optional `--trace` output prints depth, retained options, option count, and local probabilities. The final token probability is conditional on the finalist set, not the entire vocabulary. `--dry-run` prints the first routing question's group descriptions without making API calls. Normal chat output stays clean.
 
-In an initial bounded comparison on “Why is the sky blue? Answer in one short sentence.”, hierarchical mode produced ` It Its Is It It It blue` (22 calls, 66,454 reported input tokens), while shortlist mode produced ` It is is blue.`. These are single-run observations, not a quality benchmark. Hierarchical mode is the default for experimenting with the broader vocabulary; use `--selection shortlist` to compare with the original mode.
+This reduces early lock-in but cannot eliminate it: pruning can still discard the best branch, and ranking within a leaf can discard a good token. Multiple surviving paths can share a parent. Lexicographic groups remain awkward for Jev to interpret; tokens containing partial UTF-8 sequences remain excluded. This is beam search over vocabulary branches for a single next token, not beam search over alternative complete replies or an exhaustive global argmax.
+
+The original greedy hierarchy is retained as the Python method `choose_greedy` for controlled comparisons; the CLI's default hierarchical mode uses the new multi-branch selector. `--selection shortlist` still selects the original corpus shortlist.
+
+Bounded live comparison (16-token cap, one run per prompt and mode):
+
+| Prompt | Greedy hierarchy | Multi-branch hierarchy | HTTP calls (greedy / multi-branch) |
+| --- | --- | --- | --- |
+| Why is the sky blue? Answer in one short sentence. | ` It Its Is It It It It blue` | ` Because the Air air air blocks blue` | 25 / 64 |
+| Say hello in one short sentence. | `Hello` | `Hello` | 4 / 16 |
+
+All four runs selected DONE. The sky explanation remains factually incorrect and repetitive. These observations verify operation and show the call-cost tradeoff; they do not establish a reliable quality improvement.
 
 ## Limits and design tradeoffs
 

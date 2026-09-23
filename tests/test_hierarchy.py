@@ -58,7 +58,7 @@ def test_route_to_token_outside_shortlist_and_feedback(hierarchy):
             return f"t{target}", 0.7
 
     events = []
-    result = generate(Oracle(), vocab, "Hello", hierarchy=hierarchy,
+    result = generate(Oracle(), vocab, "Hello", hierarchy=SimpleNamespace(choose=hierarchy.choose_greedy),
                       on_decision=lambda *event: events.append(event))
     assert result.tokens == [target]
     assert result.text == vocab.text[target]
@@ -73,14 +73,14 @@ def test_root_done_and_invalid_route(hierarchy):
         def choose_criteria(self, *args):
             return DONE, 1.0
 
-    assert hierarchy.choose(Stop(), {}) == (DONE, 1.0)
+    assert hierarchy.choose_greedy(Stop(), {}) == (DONE, 1.0)
 
     class Invalid:
         def choose_criteria(self, *args):
             return "g999", 1.0
 
     with pytest.raises(ValueError, match="outside"):
-        hierarchy.choose(Invalid(), {})
+        hierarchy.choose_greedy(Invalid(), {})
 
 
 def test_single_leaf_and_whitespace_are_exact():
@@ -90,3 +90,47 @@ def test_single_leaf_and_whitespace_are_exact():
     assert tree.options(tree.root, True)["t3"] == {"append_exact_text": "\n"}
     with pytest.raises(ValueError):
         Hierarchy(vocab, fanout=1)
+
+
+def test_beam_recovers_second_branch_and_final_choice_controls_output():
+    vocab = SimpleNamespace(text={i: chr(97 + i) for i in range(8)}, frequency=Counter())
+    tree = Hierarchy(vocab, fanout=2, leaf_size=2, beam_width=2, per_leaf=1)
+    states = []
+
+    class Ranked:
+        def rank_criteria(self, state, criteria, instructions):
+            states.append(state.copy())
+            assert DONE not in criteria
+            assert len(criteria) <= 255
+            keys = list(criteria)
+            # First branch 0.6; second 0.4. Concentrated child scores preserve both parents.
+            values = [0.6, 0.4] if len(states) == 1 else [0.9, 0.1]
+            return dict(zip(keys, values))
+
+        def choose(self, state, candidates):
+            states.append(state.copy())
+            assert set(candidates) == {"t0", "t4"}
+            return "t4", 0.9
+
+    state = {"user_message": "Hi", "assistant_reply_so_far": ""}
+    assert tree.choose(Ranked(), state) == ("t4", 0.9)
+    assert len(states) == 6  # root + two branches + two leaves + final
+    assert all(s == state for s in states)
+
+
+def test_beam_done_only_in_final_comparison_and_candidate_cap():
+    vocab = SimpleNamespace(text={i: str(i) for i in range(300)}, frequency=Counter())
+    tree = Hierarchy(vocab)
+
+    class Ranked:
+        def rank_criteria(self, state, criteria, instructions):
+            assert DONE not in criteria
+            return {key: 1 / len(criteria) for key in criteria}
+
+        def choose(self, state, candidates):
+            assert 1 <= len(candidates) <= 48
+            return DONE, 1
+
+    assert tree.choose(Ranked(), {}) == (DONE, 1)
+    with pytest.raises(ValueError):
+        Hierarchy(vocab, beam_width=8, per_leaf=32)

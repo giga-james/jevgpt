@@ -40,7 +40,7 @@ def main():
         if args.dry_run:
             if hierarchy is not None:
                 import json
-                print(json.dumps(hierarchy.options(hierarchy.root, root=True), ensure_ascii=False, indent=2))
+                print(json.dumps(hierarchy.options(hierarchy.root), ensure_ascii=False, indent=2))
                 return
             for token in vocab.shortlist(args.prompt or "Hello!", []):
                 print(f"t{token}\t{vocab.text[token]!r}")

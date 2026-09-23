@@ -32,6 +32,11 @@ class JevClient:
         ))
 
     def choose_criteria(self, state: dict, criteria: dict, instructions: str):
+        probabilities = self.rank_criteria(state, criteria, instructions)
+        choice = max(probabilities, key=probabilities.get)
+        return choice, probabilities[choice]
+
+    def rank_criteria(self, state: dict, criteria: dict, instructions: str):
         if not 1 <= len(criteria) <= 255:
             raise ValueError("Choice requires between 1 and 255 options")
         payload = {
@@ -64,6 +69,5 @@ class JevClient:
             raise ValueError("Jev returned an invalid probability distribution")
         # Live responses round probabilities (observed totals of 0.99).
         # Argmax is well-defined without assuming the rounded values sum to one.
-        choice = max(probabilities, key=probabilities.get)
         self.input_tokens += data.get("usage", {}).get("input_tokens", 0)
-        return choice, probabilities[choice]
+        return probabilities
