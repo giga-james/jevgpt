@@ -14,6 +14,14 @@
 
 A deliberately questionable chatbot: Jev chooses one OpenAI tokenizer fragment at a time, and the growing answer becomes the next classification input. No generative model proposes the output.
 
+## Core tech stack
+
+| Technology | Role |
+| --- | --- |
+| **Speculative decoding** | Inspiration for our four parallel candidate drafts followed by one verifier. |
+| **OpenAI tokenizer** | `tiktoken` with `cl100k_base` supplies the token vocabulary and exact text fragments. |
+| **Jev** | TypeSafe AI's classifier powers all four drafts and the final verifier. |
+
 ## Run
 
 Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/).
@@ -51,8 +59,9 @@ flowchart LR
         E["Jev ③"]
         F["Jev ④"]
     end
+    O["OpenAI tokenizer<br/>cl100k_base vocabulary"] --> D
     C --> A & B & E & F
-    A & B & E & F --> V{"🐹 Verifier<br/>Pick one candidate"}
+    A & B & E & F --> V{"🐹 Jev verifier<br/>Pick one candidate"}
     V --> T["✍️ Append token"]
     T -- "Repeat" --> C
     V -- "DONE" --> X(["✓ Finish"])
