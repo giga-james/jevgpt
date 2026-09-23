@@ -21,6 +21,7 @@ Interactive mode supports `/reset` and `/quit`. Output streams as tokens arrive.
 
 ```sh
 uv run jevgpt "Why is the sky blue?" --max-tokens 64 --trace
+uv run jevgpt "Why is the sky blue?" --selection hierarchical --max-tokens 32 --trace
 uv run jevgpt "Hello" --dry-run             # No Jev calls or API key needed
 uv run jevgpt --corpus ./my-conversations.txt --seed 42
 uv run pytest
@@ -30,6 +31,8 @@ The first run downloads the `cl100k_base` tokenizer data. `--dry-run` may theref
 
 ## Algorithm
 
+The default `--selection shortlist` uses the following algorithm. An experimental `--selection hierarchical` mode is described below.
+
 1. Load `cl100k_base`; enumerate valid token IDs and retain independently valid UTF-8 text fragments. Exclude special tokens and nonprinting control characters. Preserve spaces and exact bytes.
 2. Build a 254-token shortlist: 97 basic ASCII/whitespace tokens, up to 31 additional corpus-frequency tokens, 64 prompt/recent-output tokens, 46 n-gram continuations, and 16 corpus-frequency-weighted exploration tokens. Deduplicate; fill spare slots with common tokens, then seeded random vocabulary tokens. Shuffle options to reduce fixed ordering bias. These are quotas, not guaranteed counts per group.
 3. Send the current prompt, recent conversation, and full answer-so-far to Jev. Ask a Choice question with those fragments plus `DONE`.
@@ -38,11 +41,23 @@ The first run downloads the `cl100k_base` tokenizer data. `--dry-run` may theref
 
 N-gram suggestions use suffixes of up to three output token IDs, backing off to two and one. The tiny bundled corpus is original example dialogue, not a representative language dataset. A larger custom corpus should improve the shortlist; quality is an experiment, not a guarantee. The seed controls local candidate sampling, not Jev inference determinism.
 
+## Hierarchical vocabulary selection
+
+`--selection hierarchical` makes every eligible vocabulary token reachable without a corpus shortlist. It sorts exact text fragments lexicographically, partitions them into at most 32 contiguous groups, and recursively partitions each group until leaves contain at most 128 tokens. Every group describes its inclusive text boundaries, shared prefix, token count, and six illustrative examples. Corpus frequency selects examples only; it never excludes tokens from the tree.
+
+For each output token, Jev chooses a group, then a subgroup, then an exact token from the leaf. Each decision sees the same prompt and full answer-so-far. Only the final token is appended. DONE is available at the root, where stopping is evaluated before committing to a group. Each emitted token currently takes three sequential decisions; DONE takes one. Retries can add HTTP calls. The existing output and repetition caps still apply.
+
+`--trace` prints depth, selected option, option count, and the local probability of each routing decision. The final token probability is conditional on the selected leaf; routing probabilities are not multiplied or presented as global next-token probabilities. `--dry-run --selection hierarchical` prints the root's group descriptions without making API calls.
+
+This expands vocabulary coverage, not necessarily answer quality. Greedy routing can choose the wrong branch and cannot recover within that token. Text ranges can be difficult for Jev to interpret, and tokens containing partial UTF-8 sequences remain excluded. This does not compute an exhaustive global argmax or perform beam search.
+
+In an initial bounded comparison on “Why is the sky blue? Answer in one short sentence.”, hierarchical mode produced ` It Its Is It It It blue` (22 calls, 66,454 reported input tokens), while shortlist mode produced ` It is is blue.`. These are single-run observations, not a quality benchmark. Shortlist remains the default because the larger vocabulary did not improve coherence in this test. Hierarchical mode is available for further experiments and custom corpus examples.
+
 ## Limits and design tradeoffs
 
 Jev allows at most 255 options per Choice. Its documented context limits are 64k tokens for a request and 32k for state plus the largest question. This implementation caps prompts at 8,000 UTF-8 bytes, keeps up to 4,000 bytes of recent complete conversation turns, and rejects serialized requests over 28,000 bytes. These are conservative local guards, not an exact Jev token counter. Very large generated answers or JSON-heavy inputs can hit the guard before the output cap. Context truncation only drops old turns; the current reply is never silently truncated.
 
-Probabilities describe the presented classification choices, not underlying language-model logits. The shortlist can omit the best continuation. Filtering out partial UTF-8 tokens also reduces multilingual coverage. There is one sequential API call per output token plus any DONE call or bounded rate-limit retries; every step resends context and candidates. `--trace` shows the selected candidate probability, not a global next-token probability. Trace output includes generated text, so treat it as conversation data.
+Probabilities describe the presented classification choices, not underlying language-model logits. The shortlist can omit the best continuation. Filtering out partial UTF-8 tokens also reduces multilingual coverage. Shortlist mode uses one sequential API call per output token plus any DONE call or bounded rate-limit retries; hierarchical mode uses several. Every step resends context and candidates. `--trace` shows the selected candidate probability, not a global next-token probability. Trace output includes generated text, so treat it as conversation data.
 
 The model defaults to the pinned `jev-1.13.0`; override with `JEV_MODEL`. HTTP 429 and 529 responses retry at most twice. Network failures and other API errors stop the run without substituting another model.
 

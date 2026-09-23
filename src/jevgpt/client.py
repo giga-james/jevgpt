@@ -23,18 +23,23 @@ class JevClient:
     def choose(self, state: dict, candidates: dict[str, str]) -> tuple[str, float]:
         criteria = {k: {"append_exact_text": v} for k, v in candidates.items()}
         criteria[DONE] = "The assistant reply is complete. End the reply without appending text."
+        return self.choose_criteria(state, criteria, (
+            "Continue the assistant reply to the current user message. Choose the single "
+            "text fragment that should be appended next to assistant_reply_so_far. "
+            "Fragments are literal text, including leading spaces and punctuation. "
+            "Build a helpful, concise, grammatical reply. Do not repeat the user message "
+            "or add role labels. Choose DONE only when the reply is complete."
+        ))
+
+    def choose_criteria(self, state: dict, criteria: dict, instructions: str):
+        if not 1 <= len(criteria) <= 255:
+            raise ValueError("Choice requires between 1 and 255 options")
         payload = {
             "model": self.model,
             "state": state,
             "questions": {"next_token": {
                 "type": "choice",
-                "instructions": (
-                    "Continue the assistant reply to the current user message. Choose the single "
-                    "text fragment that should be appended next to assistant_reply_so_far. "
-                    "Fragments are literal text, including leading spaces and punctuation. "
-                    "Build a helpful, concise, grammatical reply. Do not repeat the user message "
-                    "or add role labels. Choose DONE only when the reply is complete."
-                ),
+                "instructions": instructions,
                 "criteria": criteria,
             }},
         }

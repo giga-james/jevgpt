@@ -10,6 +10,7 @@ import httpx
 from .chat import generate
 from .client import JevClient
 from .vocabulary import Vocabulary
+from .hierarchy import Hierarchy
 
 
 def main():
@@ -17,9 +18,11 @@ def main():
     parser.add_argument("prompt", nargs="?", help="Omit for interactive chat; /quit exits, /reset clears history")
     parser.add_argument("--max-tokens", type=int, default=128)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--selection", choices=("shortlist", "hierarchical"), default="shortlist",
+                        help="Token selection strategy (default: shortlist)")
     parser.add_argument("--corpus", type=Path, help="UTF-8 text to use instead of the tiny bundled corpus")
     parser.add_argument("--trace", action="store_true", help="Show token IDs and candidate probabilities on stderr")
-    parser.add_argument("--dry-run", action="store_true", help="Print a shortlist without calling Jev")
+    parser.add_argument("--dry-run", action="store_true", help="Print initial choices without calling Jev")
     args = parser.parse_args()
     if args.prompt is not None and not args.prompt.strip():
         parser.error("Prompt must not be empty")
@@ -32,7 +35,12 @@ def main():
     client = None
     try:
         vocab = Vocabulary(args.corpus.read_text() if args.corpus else None, args.seed)
+        hierarchy = Hierarchy(vocab) if args.selection == "hierarchical" else None
         if args.dry_run:
+            if hierarchy is not None:
+                import json
+                print(json.dumps(hierarchy.options(hierarchy.root, root=True), ensure_ascii=False, indent=2))
+                return
             for token in vocab.shortlist(args.prompt or "Hello!", []):
                 print(f"t{token}\t{vocab.text[token]!r}")
             print("DONE\tEnd the reply")
@@ -58,7 +66,13 @@ def main():
                 if args.trace:
                     print(f"\n[t{token} p={probability:.4f} text={fragment!r}]", file=sys.stderr)
 
-            result = generate(client, vocab, prompt, history, args.max_tokens, emit)
+            def decision(depth, choice, probability, count):
+                if args.trace:
+                    print(f"\n[depth={depth} choice={choice} local_p={probability:.4f} options={count}]",
+                          file=sys.stderr)
+
+            result = generate(client, vocab, prompt, history, args.max_tokens, emit,
+                              hierarchy=hierarchy, on_decision=decision)
             print()
             print(f"[{result.stop_reason}; {len(result.tokens)} tokens; "
                   f"{client.calls - calls} calls; {client.input_tokens - usage} input tokens; "
