@@ -27,11 +27,11 @@ uv run jevgpt "Say hello in one short sentence."
 uv run jevgpt
 ```
 
-Interactive mode supports `/reset` and `/quit`. Output streams as tokens arrive. The final stderr line reports stopping reason, generated tokens, HTTP calls, reported input-token usage, and elapsed time. The key stays server-side in this local process; `.env` is ignored by Git.
+Interactive mode supports `/reset` and `/quit`. Output streams as tokens arrive. By default, the CLI shows only the conversation. Add `--trace` to show routing diagnostics and a final summary of stopping reason, generated tokens, HTTP calls, reported input-token usage, and elapsed time. The key stays server-side in this local process; `.env` is ignored by Git.
 
 ```sh
 uv run jevgpt "Why is the sky blue?" --max-tokens 64
-uv run jevgpt "Why is the sky blue?" --selection shortlist --no-trace
+uv run jevgpt "Why is the sky blue?" --selection shortlist
 uv run jevgpt "Hello" --dry-run             # No Jev calls or API key needed
 uv run jevgpt --corpus ./my-conversations.txt --seed 42
 uv run pytest
@@ -41,7 +41,7 @@ The first run downloads the `cl100k_base` tokenizer data. `--dry-run` may theref
 
 ## Algorithm
 
-Hierarchical selection with routing traces is the default. Run `uv run jevgpt` with no options to use it. Pass `--no-trace` for cleaner chat output or `--selection shortlist` to use the original algorithm below.
+Hierarchical selection with clean chat output is the default. Run `uv run jevgpt` with no options to use it. Pass `--trace` to enable debugging output or `--selection shortlist` to use the original algorithm below.
 
 1. Load `cl100k_base`; enumerate valid token IDs and retain independently valid UTF-8 text fragments. Exclude special tokens and nonprinting control characters. Preserve spaces and exact bytes.
 2. Build a 254-token shortlist: 97 basic ASCII/whitespace tokens, up to 31 additional corpus-frequency tokens, 64 prompt/recent-output tokens, 46 n-gram continuations, and 16 corpus-frequency-weighted exploration tokens. Deduplicate; fill spare slots with common tokens, then seeded random vocabulary tokens. Shuffle options to reduce fixed ordering bias. These are quotas, not guaranteed counts per group.
@@ -57,7 +57,7 @@ The default hierarchical mode makes every eligible vocabulary token reachable wi
 
 For each output token, Jev chooses a group, then a subgroup, then an exact token from the leaf. Each decision sees the same prompt and full answer-so-far. Only the final token is appended. DONE is available at the root, where stopping is evaluated before committing to a group. Each emitted token currently takes three sequential decisions; DONE takes one. Retries can add HTTP calls. The existing output and repetition caps still apply.
 
-Tracing is enabled by default and prints depth, selected option, option count, and the local probability of each routing decision. The final token probability is conditional on the selected leaf; routing probabilities are not multiplied or presented as global next-token probabilities. `--dry-run` prints the root's group descriptions without making API calls.
+Optional `--trace` output prints depth, selected option, option count, and the local probability of each routing decision. The final token probability is conditional on the selected leaf; routing probabilities are not multiplied or presented as global next-token probabilities. `--dry-run` prints the root's group descriptions without making API calls.
 
 This expands vocabulary coverage, not necessarily answer quality. Greedy routing can choose the wrong branch and cannot recover within that token. Text ranges can be difficult for Jev to interpret, and tokens containing partial UTF-8 sequences remain excluded. This does not compute an exhaustive global argmax or perform beam search.
 

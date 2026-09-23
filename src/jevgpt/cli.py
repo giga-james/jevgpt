@@ -21,8 +21,8 @@ def main():
     parser.add_argument("--selection", choices=("shortlist", "hierarchical"), default="hierarchical",
                         help="Token selection strategy (default: hierarchical)")
     parser.add_argument("--corpus", type=Path, help="UTF-8 text to use instead of the tiny bundled corpus")
-    parser.add_argument("--trace", action=argparse.BooleanOptionalAction, default=True,
-                        help="Show routing decisions and token probabilities on stderr (default: enabled)")
+    parser.add_argument("--trace", action=argparse.BooleanOptionalAction, default=False,
+                        help="Show routing decisions and token probabilities on stderr (default: disabled)")
     parser.add_argument("--dry-run", action="store_true", help="Print initial choices without calling Jev")
     args = parser.parse_args()
     if args.prompt is not None and not args.prompt.strip():
@@ -75,9 +75,10 @@ def main():
             result = generate(client, vocab, prompt, history, args.max_tokens, emit,
                               hierarchy=hierarchy, on_decision=decision)
             print()
-            print(f"[{result.stop_reason}; {len(result.tokens)} tokens; "
-                  f"{client.calls - calls} calls; {client.input_tokens - usage} input tokens; "
-                  f"{time.monotonic() - start:.1f}s]", file=sys.stderr)
+            if args.trace:
+                print(f"[{result.stop_reason}; {len(result.tokens)} tokens; "
+                      f"{client.calls - calls} calls; {client.input_tokens - usage} input tokens; "
+                      f"{time.monotonic() - start:.1f}s]", file=sys.stderr)
             history.append({"user": prompt, "assistant": result.text})
             if args.prompt is not None:
                 break
