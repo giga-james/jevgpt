@@ -18,10 +18,11 @@ def main():
     parser.add_argument("prompt", nargs="?", help="Omit for interactive chat; /quit exits, /reset clears history")
     parser.add_argument("--max-tokens", type=int, default=128)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--selection", choices=("shortlist", "hierarchical"), default="shortlist",
-                        help="Token selection strategy (default: shortlist)")
+    parser.add_argument("--selection", choices=("shortlist", "hierarchical"), default="hierarchical",
+                        help="Token selection strategy (default: hierarchical)")
     parser.add_argument("--corpus", type=Path, help="UTF-8 text to use instead of the tiny bundled corpus")
-    parser.add_argument("--trace", action="store_true", help="Show token IDs and candidate probabilities on stderr")
+    parser.add_argument("--trace", action=argparse.BooleanOptionalAction, default=True,
+                        help="Show routing decisions and token probabilities on stderr (default: enabled)")
     parser.add_argument("--dry-run", action="store_true", help="Print initial choices without calling Jev")
     args = parser.parse_args()
     if args.prompt is not None and not args.prompt.strip():
