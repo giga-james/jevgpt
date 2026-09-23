@@ -14,13 +14,15 @@
 
 A deliberately questionable chatbot: Jev chooses one OpenAI tokenizer fragment at a time, and the growing answer becomes the next classification input. No generative model proposes the output.
 
-## Core tech stack
+## Methodology
 
-| Technology | Role |
+Jev is the core: it selects every candidate and decides which token to append. Speculative drafting and the tokenizer support that process.
+
+| Component | Role |
 | --- | --- |
+| **Jev** | TypeSafe AI's classifier powers all four drafts and the final verifier. |
 | **Speculative decoding** | Inspiration for our four parallel candidate drafts followed by one verifier. |
 | **OpenAI tokenizer** | `tiktoken` with `cl100k_base` supplies the token vocabulary and exact text fragments. |
-| **Jev** | TypeSafe AI's classifier powers all four drafts and the final verifier. |
 
 ## Run
 
