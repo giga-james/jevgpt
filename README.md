@@ -72,7 +72,7 @@ The default hierarchical mode makes every eligible vocabulary token reachable wi
 
 For each output token, a bounded beam search keeps up to three promising branches at every level. Child routing scores are normalized locally and multiplied by their parent's score to rank the expanded branches; these products are heuristics, not calibrated global probabilities. Once the beam reaches leaves, Jev ranks the actual fragments in each leaf and retains up to 16 per leaf. A final fresh Choice compares at most 48 explicit fragments together, plus DONE. Routing scores are not included in this final comparison.
 
-Each decision sees the same prompt and full answer-so-far. Only the final selected token is appended. DONE is considered only in the final comparison, so it competes against actual continuations rather than broad vocabulary groups. With the current tree and defaults, each generated token or DONE takes eight sequential calls (one root, three subgroup rankings, three leaf rankings, and one final decision). Retries can add calls. The existing output and repetition caps still apply. The Python constructor exposes `beam_width` (default 3, maximum 8) and `per_leaf` (default 16); their product cannot exceed 254.
+Each decision sees the same prompt and full answer-so-far. Only the final selected token is appended. DONE is considered only in the final comparison, so it competes against actual continuations rather than broad vocabulary groups. With the current tree and defaults, each generated token or DONE normally takes four sequential HTTP calls: root ranking, batched subgroup rankings, batched leaf rankings, and final selection. Sibling questions share the same state in one request and are evaluated independently by Jev. The search still performs the same eight classification decisions; it no longer waits for a separate round trip for each sibling. Large batches are split at a conservative 56,000-byte request cap, and each state-plus-question is limited to 28,000 bytes. Payload splitting and retries can add calls. The existing output and repetition caps still apply. The Python constructor exposes `beam_width` (default 3, maximum 8) and `per_leaf` (default 16); their product cannot exceed 254.
 
 Optional `--trace` output prints depth, retained options, option count, and local probabilities. The final token probability is conditional on the finalist set, not the entire vocabulary. `--dry-run` prints the first routing question's group descriptions without making API calls. Normal chat output stays clean.
 
@@ -80,7 +80,7 @@ This reduces early lock-in but cannot eliminate it: pruning can still discard th
 
 The original greedy hierarchy is retained as the Python method `choose_greedy` for controlled comparisons; the CLI's default hierarchical mode uses the new multi-branch selector. `--selection shortlist` still selects the original corpus shortlist.
 
-Bounded live comparison (16-token cap, one run per prompt and mode):
+Earlier bounded live comparison before HTTP batching (16-token cap, one run per prompt and mode):
 
 | Prompt | Greedy hierarchy | Multi-branch hierarchy | HTTP calls (greedy / multi-branch) |
 | --- | --- | --- | --- |
@@ -89,9 +89,11 @@ Bounded live comparison (16-token cap, one run per prompt and mode):
 
 All four runs selected DONE. The sky explanation remains factually incorrect and repetitive. These observations verify operation and show the call-cost tradeoff; they do not establish a reliable quality improvement.
 
+After batching sibling questions, an eight-token sky-prompt comparison took 11.86 seconds / 64 HTTP calls with serial ranking and 6.55 seconds / 32 HTTP calls with batched ranking (about 45% less elapsed time). Both runs hit the eight-token cap and remained repetitive. This is a single live timing sample, not a latency guarantee; no vocabulary coverage or beam width was reduced.
+
 ## Limits and design tradeoffs
 
-Jev allows at most 255 options per Choice. Its documented context limits are 64k tokens for a request and 32k for state plus the largest question. This implementation caps prompts at 8,000 UTF-8 bytes, keeps up to 4,000 bytes of recent complete conversation turns, and rejects serialized requests over 28,000 bytes. These are conservative local guards, not an exact Jev token counter. Very large generated answers or JSON-heavy inputs can hit the guard before the output cap. Context truncation only drops old turns; the current reply is never silently truncated.
+Jev allows at most 255 options per Choice. Its documented context limits are 64k tokens for a request and 32k for state plus the largest question. This implementation caps prompts at 8,000 UTF-8 bytes, keeps up to 4,000 bytes of recent complete conversation turns, and rejects individual state-plus-question payloads over 28,000 bytes (batched requests are capped at 56,000 bytes). These are conservative local guards, not an exact Jev token counter. Very large generated answers or JSON-heavy inputs can hit the guard before the output cap. Context truncation only drops old turns; the current reply is never silently truncated.
 
 Probabilities describe the presented classification choices, not underlying language-model logits. The shortlist can omit the best continuation. Filtering out partial UTF-8 tokens also reduces multilingual coverage. Shortlist mode uses one sequential API call per output token plus any DONE call or bounded rate-limit retries; hierarchical mode uses several. Every step resends context and candidates. `--trace` shows the selected candidate probability, not a global next-token probability. Trace output includes generated text, so treat it as conversation data.
 

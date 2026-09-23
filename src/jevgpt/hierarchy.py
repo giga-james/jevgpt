@@ -58,18 +58,20 @@ class Hierarchy:
         depth = 0
         while any(node.children for node, _ in beam):
             expanded = []
-            for node, score in beam:
-                if not node.children:
-                    expanded.append((node, score))
-                    continue
-                criteria = self.options(node)
-                probabilities = client.rank_criteria(state, criteria, (
+            active = [node for node, _ in beam if node.children]
+            ranked = iter(self._rank_nodes(client, state, active, (
                     "Continue the assistant reply to user_message after assistant_reply_so_far. "
                     "Rank groups by which contains the best next literal text fragment. Groups "
                     "are sorted lexicographically, including spaces and capitalization, with "
                     "inclusive first/last boundaries. Examples are not exhaustive. Consider "
                     "the continuation needed, not group size. Do not output group labels."
-                ))
+            )))
+            for node, score in beam:
+                if not node.children:
+                    expanded.append((node, score))
+                    continue
+                criteria = self.options(node)
+                probabilities = next(ranked)
                 if set(probabilities) != set(criteria):
                     raise ValueError("Jev returned options outside the hierarchy node")
                 total = sum(probabilities.values())
@@ -82,13 +84,13 @@ class Hierarchy:
             depth += 1
 
         candidates = {}
-        for node, _ in beam:
+        rankings = self._rank_nodes(client, state, [node for node, _ in beam], (
+            "Rank these exact literal fragments as the next continuation of "
+            "assistant_reply_so_far answering user_message. Preserve spaces and punctuation. "
+            "Prefer a helpful grammatical continuation without repetition or role labels."
+        ))
+        for (node, _), probabilities in zip(beam, rankings):
             criteria = self.options(node)
-            probabilities = client.rank_criteria(state, criteria, (
-                "Rank these exact literal fragments as the next continuation of "
-                "assistant_reply_so_far answering user_message. Preserve spaces and punctuation. "
-                "Prefer a helpful grammatical continuation without repetition or role labels."
-            ))
             if set(probabilities) != set(criteria):
                 raise ValueError("Jev returned options outside the hierarchy leaf")
             for key in sorted(probabilities, key=probabilities.get, reverse=True)[:self.per_leaf]:
@@ -102,6 +104,13 @@ class Hierarchy:
         if on_decision:
             on_decision(depth + 1, choice, probability, len(candidates) + 1)
         return choice, probability
+
+    def _rank_nodes(self, client, state, nodes, instructions):
+        criteria = [self.options(node) for node in nodes]
+        if hasattr(client, "rank_many"):
+            return client.rank_many(state, criteria, instructions)
+        # Retain compatibility with simple offline ranking clients.
+        return [client.rank_criteria(state, options, instructions) for options in criteria]
 
     def choose_greedy(self, client, state, on_decision=None):
         node = self.root

@@ -37,20 +37,41 @@ class JevClient:
         return choice, probabilities[choice]
 
     def rank_criteria(self, state: dict, criteria: dict, instructions: str):
-        if not 1 <= len(criteria) <= 255:
+        return self._rank_questions(state, {
+            "next_token": {"type": "choice", "instructions": instructions, "criteria": criteria}
+        })["next_token"]
+
+    def rank_many(self, state: dict, criteria_list: list[dict], instructions: str):
+        """Evaluate independent questions in one round trip, with bounded payloads."""
+        results = {}
+        pending = {}
+        for index, criteria in enumerate(criteria_list):
+            key = f"q{index}"
+            question = {"type": "choice", "instructions": instructions, "criteria": criteria}
+            self._validate_question(state, question)
+            proposed = {**pending, key: question}
+            if pending and self._size(state, proposed) > 56000:
+                results.update(self._rank_questions(state, pending))
+                pending = {}
+            pending[key] = question
+        if pending:
+            results.update(self._rank_questions(state, pending))
+        return [results[f"q{i}"] for i in range(len(criteria_list))]
+
+    def _size(self, state, questions):
+        return len(json.dumps({"model": self.model, "state": state, "questions": questions},
+                              ensure_ascii=False).encode())
+
+    def _validate_question(self, state, question):
+        if not 1 <= len(question["criteria"]) <= 255:
             raise ValueError("Choice requires between 1 and 255 options")
-        payload = {
-            "model": self.model,
-            "state": state,
-            "questions": {"next_token": {
-                "type": "choice",
-                "instructions": instructions,
-                "criteria": criteria,
-            }},
-        }
-        # Conservative local size guard, not an exact count of Jev's tokenizer.
-        if len(json.dumps(payload, ensure_ascii=False).encode()) > 28000:
+        if self._size(state, {"question": question}) > 28000:
             raise ValueError("Request is too large; shorten the prompt or conversation.")
+
+    def _rank_questions(self, state, questions):
+        for question in questions.values():
+            self._validate_question(state, question)
+        payload = {"model": self.model, "state": state, "questions": questions}
         for attempt in range(3):
             self.calls += 1
             response = self.http.post("/v1/systemone", json=payload)
@@ -60,14 +81,15 @@ class JevClient:
         if response.is_error:
             raise RuntimeError(f"Jev returned HTTP {response.status_code}. Check your key, access, or rate limit.")
         data = response.json()
-        answer = data["answers"]["next_token"]
-        probabilities = answer["probabilities"]
-        if set(probabilities) != set(criteria) or not all(
-            isinstance(p, (int, float)) and math.isfinite(p) and 0 <= p <= 1
-            for p in probabilities.values()
-        ) or sum(probabilities.values()) <= 0:
-            raise ValueError("Jev returned an invalid probability distribution")
-        # Live responses round probabilities (observed totals of 0.99).
-        # Argmax is well-defined without assuming the rounded values sum to one.
+        results = {}
+        for key, question in questions.items():
+            probabilities = data["answers"][key]["probabilities"]
+            if set(probabilities) != set(question["criteria"]) or not all(
+                isinstance(p, (int, float)) and math.isfinite(p) and 0 <= p <= 1
+                for p in probabilities.values()
+            ) or sum(probabilities.values()) <= 0:
+                raise ValueError("Jev returned an invalid probability distribution")
+            # Live values are rounded; do not require an exact sum of one.
+            results[key] = probabilities
         self.input_tokens += data.get("usage", {}).get("input_tokens", 0)
-        return probabilities
+        return results
