@@ -1,5 +1,7 @@
 # JevGPT
 
+![JevGPT](assets/jevgpt.png)
+
 A deliberately questionable chatbot: Jev chooses one OpenAI tokenizer fragment at a time, and the growing answer becomes the next classification input. No generative model proposes the output.
 
 ## Run
