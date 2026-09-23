@@ -44,15 +44,33 @@ The first run downloads the `cl100k_base` tokenizer data. `--dry-run` may theref
 ```mermaid
 %%{init: {"theme": "base", "themeVariables": {"primaryColor": "#fff1f6", "primaryTextColor": "#29232b", "primaryBorderColor": "#d88bad", "lineColor": "#a7748c", "fontFamily": "sans-serif"}}}%%
 flowchart LR
-    P["💬 Your prompt"] --> N["🎲 Sample 4 × 254 tokens"]
-    N --> J["🐹 Pick 4 winners, then verify"]
-    J -- "Text" --> A["✍️ Add it to the reply"]
-    A -- "Repeat with reply so far" --> N
-    J -- "DONE" --> E["✓ Finish"]
+    P["Prompt + reply so far"] --> S["Stratified sampling<br/>4 disjoint sets × 254 tokens"]
+    subgraph D["Speculative decoding experiment: parallel candidate drafts"]
+        direction TB
+        D1["Jev draft 1<br/>sample 1"]
+        D2["Jev draft 2<br/>sample 2"]
+        D3["Jev draft 3<br/>sample 3"]
+        D4["Jev draft 4<br/>sample 4"]
+    end
+    S --> D1
+    S --> D2
+    S --> D3
+    S --> D4
+    D1 -- "candidate 1" --> V["Jev verifier<br/>4 candidates + DONE"]
+    D2 -- "candidate 2" --> V
+    D3 -- "candidate 3" --> V
+    D4 -- "candidate 4" --> V
+    V -- "One selected token" --> A["Append token to reply"]
+    A -- "Next position" --> P
+    V -- "DONE" --> E["Finish"]
     style E fill:#eaf5ef,stroke:#86ad95,color:#263a2e
 ```
 
+**Speculative mode: four parallel drafts, one verifier, one output token.** All drafts target the same next-token position using identical prompt/reply context. This is a speculative-decoding-inspired candidate-selection experiment, rather than the paper’s exact decoding algorithm.
+
 Four disjoint, stratified samples contain 254 candidates each. Four concurrent Jev calls choose one winner per sample for the same next-token position. A fifth call selects one of those four winners or DONE. Only that final token is appended, then the loop repeats.
+
+See the [experiment log](docs/experiments.md) for the iterations, observed outputs, latency measurements, and why we changed direction.
 
 ### Selection modes
 
