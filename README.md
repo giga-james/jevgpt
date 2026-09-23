@@ -35,7 +35,7 @@ Jev is the core: it selects every candidate and decides which token to append. S
 ### Architecture
 
 ```mermaid
-%%{init: {"theme": "base", "flowchart": {"nodeSpacing": 24, "rankSpacing": 42, "curve": "basis"}, "themeVariables": {"primaryColor": "#fff1f6", "primaryTextColor": "#29232b", "primaryBorderColor": "#d88bad", "lineColor": "#a7748c", "fontFamily": "sans-serif", "fontSize": "18px"}}}%%
+%%{init: {"theme": "base", "flowchart": {"nodeSpacing": 24, "rankSpacing": 42, "curve": "basis", "htmlLabels": false, "padding": 20}, "themeVariables": {"primaryColor": "#fff1f6", "primaryTextColor": "#29232b", "primaryBorderColor": "#d88bad", "lineColor": "#a7748c", "fontFamily": "sans-serif", "fontSize": "18px"}}}%%
 flowchart TB
     C["💬 Prompt + reply"]
     O["OpenAI tokenizer<br/>cl100k_base"]
@@ -44,7 +44,7 @@ flowchart TB
     A & B & E & F --> V["🐹 Jev verifier<br/>4 candidates + DONE"]
     V --> T["✍️ Append token"]
     T -- "Repeat" --> C
-    V -- "DONE" --> X(["✓ Finish"])
+    V --> X(["DONE · Finish"])
     classDef draft fill:#f0eaff,stroke:#a58bc9,color:#322747
     classDef verify fill:#fff0d9,stroke:#d3a05b,color:#493519
     classDef done fill:#eaf5ef,stroke:#86ad95,color:#263a2e
