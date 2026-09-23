@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from itertools import count
 
 from .client import DONE
 
@@ -16,8 +17,8 @@ def generate(client, vocabulary, prompt, history=(), max_tokens=128, on_token=No
         raise ValueError("Prompt must not be empty")
     if len(prompt.encode()) > 8000:
         raise ValueError("Prompt must fit within 8,000 UTF-8 bytes")
-    if not 1 <= max_tokens <= 512:
-        raise ValueError("max_tokens must be between 1 and 512")
+    if not 0 <= max_tokens <= 512:
+        raise ValueError("max_tokens must be between 0 and 512 (0 disables the token limit)")
     recent = []
     budget = 4000
     for turn in reversed(history):
@@ -29,7 +30,7 @@ def generate(client, vocabulary, prompt, history=(), max_tokens=128, on_token=No
     tokens = []
     text = ""
     reason = "max_tokens"
-    for _ in range(max_tokens):
+    for _ in (count() if max_tokens == 0 else range(max_tokens)):
         state = {
             "conversation": recent,
             "user_message": prompt,

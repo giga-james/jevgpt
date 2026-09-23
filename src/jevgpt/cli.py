@@ -18,7 +18,7 @@ from .parallel import ParallelSelection
 def main():
     parser = argparse.ArgumentParser(description="A chatbot made of Jev classification decisions")
     parser.add_argument("prompt", nargs="?", help="Omit for interactive chat; /quit exits, /reset clears history")
-    parser.add_argument("--max-tokens", type=int, default=128)
+    parser.add_argument("--max-tokens", type=int, default=128, help="Maximum output tokens; 0 disables the token limit")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--concurrency", type=int, help="Maximum concurrent requests (default: 390 for tournament, 4 otherwise)")
     parser.add_argument("--selection", choices=("parallel", "shortlist", "speculative", "hierarchical", "tournament"), default="parallel",
@@ -31,8 +31,8 @@ def main():
     if args.prompt is not None and not args.prompt.strip():
         parser.error("Prompt must not be empty")
     load_dotenv(Path.cwd() / ".env")
-    if not 1 <= args.max_tokens <= 512:
-        parser.error("--max-tokens must be between 1 and 512")
+    if not 0 <= args.max_tokens <= 512:
+        parser.error("--max-tokens must be between 0 and 512 (0 disables the token limit)")
     if args.concurrency is not None and not 1 <= args.concurrency <= 390:
         parser.error("--concurrency must be between 1 and 390")
     key = os.getenv("TYPESAFE_API_KEY", "").strip()

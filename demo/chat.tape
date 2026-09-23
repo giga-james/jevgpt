@@ -5,7 +5,7 @@ Output .cache/demo/session.txt
 Require uv
 Set Shell "bash"
 Set Width 1440
-Set Height 620
+Set Height 900
 Set FontSize 30
 Set FontFamily "Menlo"
 Set Theme "Catppuccin Mocha"
@@ -28,21 +28,26 @@ Sleep 500ms
 Show
 
 Sleep 500ms
-Type "uv run jevgpt --max-tokens 24"
+Type "uv run jevgpt --max-tokens 0"
 Sleep 600ms
 Enter
 Wait+Line@60s /You:/
 Sleep 500ms
-Type "Hi! Say hello in one short sentence."
+Type "Why is the sky blue?"
 Enter
 Sleep 500ms
-Wait+Line@90s /You:/
+Wait+Line@600s /You:/
 Sleep 2s
-Type "What is 2 + 2? Answer briefly."
+Type "Why does it turn red at sunset?"
 Enter
 Sleep 500ms
-Wait+Line@90s /You:/
-Sleep 4s
+Wait+Line@600s /You:/
+Sleep 3s
+Type "How do I reverse a list in Python?"
+Enter
+Sleep 500ms
+Wait+Line@600s /You:/
+Sleep 5s
 Screenshot .cache/demo/final.png
 Sleep 200ms
 Type "/quit"

@@ -2,7 +2,7 @@
 
 The repository demo records a real interactive JevGPT session with [VHS](https://github.com/charmbracelet/vhs), then uses FFmpeg to produce a compact GIF and an H.264 MP4. The workflow follows [Making a Polished TUI Demo Video Without a Video Editor](https://blog.kunchenguid.com/p/making-a-polished-tui-demo-video).
 
-The prompts are scripted; Jev's responses are live, not mocked or rewritten. Playback stays at real speed. The 24-token cap bounds each reply. VHS waits for the next `You:` prompt before typing another message, so differing response times do not interleave inputs.
+The prompts are scripted; Jev's responses are live, not mocked or rewritten. Playback stays at real speed. The demo launches `uv run jevgpt --max-tokens 0`, which disables the output-token limit. Replies stop on `DONE` or the existing repetition guard; no answer is cut to fit a demo token budget. VHS waits for the next `You:` prompt before typing another message, so differing response times do not interleave inputs.
 
 ## Record again
 
@@ -14,7 +14,7 @@ uv sync
 make demo
 ```
 
-Recording makes paid API requests using the configured key. It does not display the key or .env contents. The terminal contains only the launch command and two scripted chat turns. Outputs and timings vary between runs.
+Recording makes paid API requests using the configured key. It does not display the key or .env contents. The terminal contains only the launch command and three scripted chat turns: a science question, a follow-up, and a coding question. Outputs and timings vary between runs.
 
 The resulting files are:
 

@@ -20,7 +20,7 @@ A deliberately questionable chatbot: Jev chooses one OpenAI tokenizer fragment a
 
 [Watch the MP4](assets/jevgpt-demo.mp4) · [Record it yourself](demo/README.md)
 
-A real two-turn chat with live Jev responses, played at original speed.
+A real three-turn chat: a science question, a follow-up, and a coding question. Live Jev responses play at original speed with no output-token cap (`--max-tokens 0`).
 
 ## Methodology
 
@@ -107,6 +107,6 @@ Related reading: [Fast Inference from Transformers via Speculative Decoding](htt
 - **Text has limits:** partial UTF-8 tokens are excluded, reducing multilingual coverage. Long conversations drop older turns; the current reply is retained.
 - **Quality is experimental:** wider search hasn't demonstrated reliable improvement. One sky-blue answer was `Because the Air air air blocks blue`—still wrong and repetitive.
 
-Generation stops on `DONE`, the output cap (128 tokens by default), or repeated loops. Local request-size guards keep payloads bounded but aren't exact Jev token counts.
+Generation stops on `DONE`, the output cap (128 tokens by default), or repeated loops. Set `--max-tokens 0` to disable the output cap while retaining repetition detection. Local request-size guards keep payloads bounded but aren't exact Jev token counts.
 
 [Speculative mode and benchmark](docs/parallel.md) · [Tournament details and benchmark](docs/tournament.md) · [Other algorithms and live comparisons](docs/algorithm.md) · [TypeSafe API](https://docs.typesafe.ai/api) · [Model limits](https://docs.typesafe.ai/models)

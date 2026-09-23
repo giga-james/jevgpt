@@ -97,3 +97,24 @@ def test_api_retries_and_rejects_invalid_choices(monkeypatch):
         assert client.calls == 2
     finally:
         client.close()
+
+
+def test_unlimited_generation_reaches_done_beyond_default_cap(vocab):
+    sequence = iter(vocab.encode(' '.join(str(i) for i in range(150))) + [None])
+
+    class Draft:
+        def choose(self, client, state, on_decision):
+            token = next(sequence)
+            return (DONE if token is None else f't{token}', 1.0)
+
+    result = generate(None, vocab, 'Count', max_tokens=0, hierarchy=Draft())
+    assert len(result.tokens) > 128
+    assert result.stop_reason == 'done'
+
+
+def test_unlimited_generation_retains_repetition_guard(vocab):
+    class Fake:
+        def choose(self, state, candidates):
+            return f"t{vocab.encode('a')[0]}", 1.0
+
+    assert generate(Fake(), vocab, 'Hi', max_tokens=0).stop_reason == 'repetition'
