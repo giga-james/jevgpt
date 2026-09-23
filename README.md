@@ -35,18 +35,13 @@ Jev is the core: it selects every candidate and decides which token to append. S
 ### Architecture
 
 ```mermaid
-%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#fff1f6", "primaryTextColor": "#29232b", "primaryBorderColor": "#d88bad", "lineColor": "#a7748c", "fontFamily": "sans-serif"}}}%%
-flowchart LR
+%%{init: {"theme": "base", "flowchart": {"nodeSpacing": 24, "rankSpacing": 42, "curve": "basis"}, "themeVariables": {"primaryColor": "#fff1f6", "primaryTextColor": "#29232b", "primaryBorderColor": "#d88bad", "lineColor": "#a7748c", "fontFamily": "sans-serif", "fontSize": "18px"}}}%%
+flowchart TB
     C["💬 Prompt + reply"]
-    subgraph D["4 parallel drafts · 254 candidates each"]
-        A["Jev ①"]
-        B["Jev ②"]
-        E["Jev ③"]
-        F["Jev ④"]
-    end
-    O["OpenAI tokenizer<br/>cl100k_base vocabulary"] --> D
-    C --> A & B & E & F
-    A & B & E & F --> V{"🐹 Jev verifier<br/>Pick one candidate"}
+    O["OpenAI tokenizer<br/>cl100k_base"]
+    C & O --> S["4 stratified samples<br/>254 tokens each"]
+    S --> A["Jev ①"] & B["Jev ②"] & E["Jev ③"] & F["Jev ④"]
+    A & B & E & F --> V["🐹 Jev verifier<br/>4 candidates + DONE"]
     V --> T["✍️ Append token"]
     T -- "Repeat" --> C
     V -- "DONE" --> X(["✓ Finish"])
