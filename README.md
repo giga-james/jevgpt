@@ -58,12 +58,14 @@ Four disjoint, stratified samples contain 254 candidates each. Four concurrent J
 
 | Mode | How it works | Cost per step |
 | --- | --- | --- |
-| **Parallel samples (default)** | Four disjoint 254-token samples → four concurrent winners → one final choice plus `DONE`. | 5 calls in 2 sequential stages per token |
+| **Speculative (default)** | Four disjoint 254-token samples → four concurrent winners → one final choice plus `DONE`. | 5 calls in 2 sequential stages per token |
 | **Tournament** | Evaluate all 390 buckets, compare their winners in semifinals, then choose a finalist or `DONE`. | Many batched calls; 44 per step in one live test |
 | **Hierarchical** | Search vocabulary groups, keep three promising branches, then compare up to 48 tokens plus `DONE`. | Usually 4 HTTP calls |
 | **Shortlist** | Choose from 254 tokens drawn from common text, the prompt, and likely continuations, plus `DONE`. | 1 HTTP call |
 
-All modes use the prompt and full reply so far. Parallel-sample mode makes four concurrent draft requests, then one verifier request. The older `--selection speculative` spelling is an alias for this corrected algorithm. Use `--selection shortlist` for the original one-call-per-token baseline. `--selection hierarchical` and `--selection tournament` remain available for experiments; tournament still launches all batches concurrently by default. Normal output stays a plain chatbot. `--trace` enables diagnostics. Retries and payload splitting can add calls.
+All modes use the prompt and full reply so far. Speculative mode makes four concurrent draft requests, then one verifier request. `--selection speculative` and `--selection parallel` select this same algorithm. Use `--selection shortlist` for the original one-call-per-token baseline. `--selection hierarchical` and `--selection tournament` remain available for experiments; tournament still launches all batches concurrently by default. Normal output stays a plain chatbot. `--trace` enables diagnostics. Retries and payload splitting can add calls.
+
+Related reading: [Fast Inference from Transformers via Speculative Decoding](https://arxiv.org/abs/2211.17192) (Leviathan, Kalman, and Matias, 2023). Our Speculative mode uses four competing candidates for one position; it does not implement the paper’s distribution-preserving speculative decoding algorithm.
 
 ### Tradeoffs
 
@@ -75,4 +77,4 @@ All modes use the prompt and full reply so far. Parallel-sample mode makes four 
 
 Generation stops on `DONE`, the output cap (128 tokens by default), or repeated loops. Local request-size guards keep payloads bounded but aren't exact Jev token counts.
 
-[Parallel samples and benchmark](docs/parallel.md) · [Tournament details and benchmark](docs/tournament.md) · [Other algorithms and live comparisons](docs/algorithm.md) · [TypeSafe API](https://docs.typesafe.ai/api) · [Model limits](https://docs.typesafe.ai/models)
+[Speculative mode and benchmark](docs/parallel.md) · [Tournament details and benchmark](docs/tournament.md) · [Other algorithms and live comparisons](docs/algorithm.md) · [TypeSafe API](https://docs.typesafe.ai/api) · [Model limits](https://docs.typesafe.ai/models)
