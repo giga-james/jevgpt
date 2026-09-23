@@ -24,32 +24,7 @@ Jev is the core: it selects every candidate and decides which token to append. S
 | **Speculative decoding** | Inspiration for our four parallel candidate drafts followed by one verifier. |
 | **OpenAI tokenizer** | `tiktoken` with `cl100k_base` supplies the token vocabulary and exact text fragments. |
 
-## Run
-
-Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/).
-
-```sh
-uv sync
-# Only if you do not already have a .env file:
-cp -n .env.template .env
-# Add your TypeSafe key to .env, then:
-uv run jevgpt "Say hello in one short sentence."
-uv run jevgpt
-```
-
-Interactive mode supports `/reset` and `/quit`. Output streams as tokens arrive. By default, the CLI shows only the conversation. Add `--trace` to show routing diagnostics and a final summary of stopping reason, generated tokens, HTTP calls, reported input-token usage, and elapsed time. The key stays server-side in this local process; `.env` is ignored by Git.
-
-```sh
-uv run jevgpt "Why is the sky blue?" --max-tokens 64
-uv run jevgpt "Why is the sky blue?" --selection shortlist
-uv run jevgpt "Hello" --dry-run             # No Jev calls or API key needed
-uv run jevgpt --corpus ./my-conversations.txt --seed 42
-uv run pytest
-```
-
-The first run downloads the `cl100k_base` tokenizer data. `--dry-run` may therefore need network access on its first use. No OpenAI API key is needed.
-
-## Algorithm
+### Architecture
 
 ```mermaid
 %%{init: {"theme": "base", "themeVariables": {"primaryColor": "#fff1f6", "primaryTextColor": "#29232b", "primaryBorderColor": "#d88bad", "lineColor": "#a7748c", "fontFamily": "sans-serif"}}}%%
@@ -79,7 +54,32 @@ flowchart LR
 
 See the [experiment log](docs/experiments.md) for the iterations, observed outputs, latency measurements, and why we changed direction.
 
-### Selection modes
+## Run
+
+Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/).
+
+```sh
+uv sync
+# Only if you do not already have a .env file:
+cp -n .env.template .env
+# Add your TypeSafe key to .env, then:
+uv run jevgpt "Say hello in one short sentence."
+uv run jevgpt
+```
+
+Interactive mode supports `/reset` and `/quit`. Output streams as tokens arrive. By default, the CLI shows only the conversation. Add `--trace` to show routing diagnostics and a final summary of stopping reason, generated tokens, HTTP calls, reported input-token usage, and elapsed time. The key stays server-side in this local process; `.env` is ignored by Git.
+
+```sh
+uv run jevgpt "Why is the sky blue?" --max-tokens 64
+uv run jevgpt "Why is the sky blue?" --selection shortlist
+uv run jevgpt "Hello" --dry-run             # No Jev calls or API key needed
+uv run jevgpt --corpus ./my-conversations.txt --seed 42
+uv run pytest
+```
+
+The first run downloads the `cl100k_base` tokenizer data. `--dry-run` may therefore need network access on its first use. No OpenAI API key is needed.
+
+## Selection modes
 
 | Mode | How it works | Cost per step |
 | --- | --- | --- |
