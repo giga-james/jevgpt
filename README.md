@@ -4,6 +4,7 @@
   <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11+">
   <a href="https://docs.typesafe.ai"><img src="https://img.shields.io/badge/Powered_by-Jev-f4a7c3" alt="Powered by Jev"></a>
   <img src="https://img.shields.io/badge/Status-Experimental-f4a7c3" alt="Experimental">
+  <a href="https://x.com/kunggaochicken"><img src="https://img.shields.io/badge/X-@kunggaochicken-000000?logo=x&logoColor=white" alt="X: @kunggaochicken"></a>
 </p>
 
 <p align="center"><strong>A classifier pretending to be a chatbot.</strong></p>
